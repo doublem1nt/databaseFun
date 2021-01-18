@@ -121,55 +121,25 @@ const viewEmpByDept = [
   // }
 ]
 
-const employee_add = [
-  {
-    type: "input",
-    message: "Enter the FIRST NAME of the New Employee: ",
-    name: "new_Fname",
-  },
-  {
-    type: "input",
-    message: "Enter the LAST NAME of the New Employee: ",
-    name: "new_Lname",
-  },
-  {
-    type: "list",
-    message: "Specify a New Employee's ROLE (or title): ",
-    name: "newRole",
-    choices: roleArr,
-  },
-  {
-    type: "list",
-    message: "Please specify the employee's Manager: ",
-    name: "new_assignedManager",
-    choices: employeeArr,
-  },
-  {
-    type: "confirm",
-    message: "Are you done adding new Employees?",
-    name: "end_newEmp",
-  }
-]
-
 const init = () => {
   inquirer
     .prompt({
       name: "choice",
-      type: "list",
+      type: "rawlist",
       message: "What would you like to do?",
       choices: [
         "Add Department",
         "Add Role",
         "Add Employee",
-        "Remove Department",
-        "Remove Role",
-        "Remove Employee", 
+        // "Remove Department",
+        // "Remove Role",
+        // "Remove Employee", 
         // "View All Employees by Department",
         // "View All Employees by Manager",
         "View All Departments",
         "View All Role",
         "View All Employees",
-        // "Update Employee Role",
+        "Update Employee Role",
         // "Update Employee Manager",
         "Exit"
       ]
@@ -207,15 +177,15 @@ const init = () => {
       //   }
       //   break;
 // ----------------------------------------------------------------------------//
-      case "Remove Employee":
+      // case "Remove Employee":
 
-        if (employeeArr.length == 1) {
-          console.log("Before you remove an Employee, you must first add Employees.");
-          init();
-        } else {
-          removeEmp();
-        }
-        break;
+      //   if (employeeArr.length == 1) {
+      //     console.log("Before you remove an Employee, you must first add Employees.");
+      //     init();
+      //   } else {
+      //     removeEmp();
+      //   }
+      //   break;
 // ----------------------------------------------------------------------------//
       case "View All Departments":
         viewAllDept();
@@ -243,9 +213,9 @@ const init = () => {
       //   viewEmpMgr();
       //   break;
 // ----------------------------------------------------------------------------//
-      // case "Update Employee Role":
-      //   notfinished();
-      //   break;
+      case "Update Employee Role":
+        updateEmployeeRole();
+        break;
 // ----------------------------------------------------------------------------//
       // case "Update Employee Manager":
       //   notfinished();
@@ -310,19 +280,20 @@ const addRole = () => {
           getDepartmentId()
        } 
 
-      var roleId;
+      var deptID;
       function getDepartmentId() {
         const query = "SELECT id FROM department WHERE name = ?";
         connection.query(query, jobTitle, (err, res) => {
           if (err) throw err;                 
-          console.log(res[0].id); 
-          roleId = res[0].id;
-          roleFinalized();
+          console.log(`response is ${res[0].id}`); 
+          deptID = res[0].id;
+          builtRole();
         });
-      };
+      }
 
-      function roleFinalized() {
-        connection.query("INSERT INTO role (title, salary) VALUES (?, ?)", [newAddedRole, newRoleSalary], (err, res) => {
+      function builtRole() {
+        connection.query("INSERT INTO role (title, salary, department_id) VALUES (?, ?, ?)", [newAddedRole, newRoleSalary, deptID
+        ], (err, res) => {
           if (err) throw err;
           console.log(`\n${newAddedRole} added into org's Roles.\n`);
         });
@@ -340,131 +311,173 @@ const addRole = () => {
 }
 
 const addEmployee = () => {
-  inquirer
-    .prompt(employee_add)
+  connection.query("SELECT title FROM role", (err, res) => {
+    if (err) throw err;
+
+    var rolesList = [];
+      for (var i = 0; i< res.length; i++){
+      rolesList.push(res[i].title);
+    }
+
+    inquirer
+      .prompt([
+        {
+          type: "input",
+          message: "Enter the FIRST NAME of the New Employee: ",
+          name: "new_Fname",
+        },
+        {
+          type: "input",
+          message: "Enter the LAST NAME of the New Employee: ",
+          name: "new_Lname",
+        },
+        {
+          type: "list",
+          name: "newRole",
+          choices: rolesList
+        },
+        {
+          type: "confirm",
+          message: "Are you done adding new Employees?",
+          name: "end_newEmp",
+        }
+    ])
     .then((data) => {
-      var roleId;
-      var newEmpRole = data.newRole;
+      let newEmpRole = data.newRole;
       let newfullName = data.new_Fname + " " + data.new_Lname;
+      var roleId = [];
 
-      connection.query("SELECT id FROM role WHERE title = ?", newEmpRole, (err, res) => {
+      connection.query("SELECT id FROM role WHERE title = ?", `${newEmpRole}`, (err, res) => {
         if (err) throw err;
-        console.log(res);
-        // roleId = res[0].id;
+        console.log(`roleid equals ${res[0].id}`);
+        roleId.push(res[0].id);
+        
+      
+        var newEmpData = [`${data.new_Fname}`, `${data.new_Lname}`, roleId];
+        console.log(newEmpData)
+        connection.query("INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES (?, ?, ?, 1)", newEmpData, (err, res) => {
+          if (err) throw (err);
+          console.log(`\n${newfullName} added into org's Employees list.\n`);
+          console.log(`---------------------------------------------------`);
+        })
+
       });
-
-   
-      let newEmpData = [`${data.new_Fname}`, `${data.new_Lname}`, `1`];
-      connection.query("INSERT INTO employee (first_name, last_name, role_id) VALUES (?, ?, ?)", newEmpData, (err, res) => {
-        if (err) throw (err);
-        console.log(`\n${newfullName} added into org's Employees list.\n`);
-        console.log(`---------------------------------------------------`);
-        employeeArr.push(newfullName);
-        console.log(employeeArr);
-        init();
-      });
-      })
-
-}
-
-// const removeDept = () => {
-//   inquirer
-//     .prompt(remove_dept)
-//     .then((data) => {
-//       console.log(data);
-//       console.log(data.rm_Dept)
-//       let reducedDeptArr = deptArr.filter(dept => dept !== data.rm_Dept);
-//       deptArr = reducedDeptArr;
-
-//       console.log(`${data.rm_Dept} will be removed from the Departments list.`);
-//       init();      
-//     })
-// }
-
-// const removeRole = () => {
-//   inquirer
-//     .prompt(remove_Role)
-//     .then((data) => {
-//       let reducedRoleArr = roleArr.filter(dept => dept !== data.rm_Role);
-//       roleArr = reducedRoleArr;
-
-//       console.log(`${data.rm_Role} will be removed from the Roles list.`);
-//       init();      
-//     })
-// }
-
-const removeEmp = () => {
-  inquirer
-    .prompt(remove_employee)
-    .then((data) => {
-      if (data.rm_Emp == "N/A"){
-        console.log("Sorry, you cannot remove that Employee from the list. Please choose another.");
-        removeEmp();
+      if (!data.end_newEmp){
+        addEmployee();
       } else {
-        let reducedEmpArr = employeeArr.filter(Emp => Emp !== data.rm_Emp);
-        console.log(reducedEmpArr)
-        employeeArr = reducedEmpArr;
-
-        console.log(`${data.rm_Emp} will be removed from the Employees Array.`);
+        console.log(`"Adding New Employees" process complete. Thank you.\n`);
+        console.log(`-------------------------------------------------`);
         init();
       }
     })
+  })
+}
+
+const viewAllRoles = () => {
+  connection.query("SELECT * FROM role", (err, res) => {
+    if (err) throw err;
+    const rolesData = res;
+    const rolesDisplay = rolesData.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
+    console.log("-------------------------------------");
+    console.table(rolesDisplay);
+    init();
+  })
 }
 
 const viewAllDept = () => {
   connection.query("SELECT * FROM department", (err, res) => {
     if (err) throw err;
     const deptData = res;
-    const redesigned = deptData.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
-    console.table(redesigned);
+    const deptDisplay = deptData.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
+    console.log("-------------------------------------");
+    console.table(deptDisplay);
+    init();
   })
-  init();
 }
-
-// const viewDeptEmp = () => {
-//   inquirer
-//     .prompt(viewEmpByDept)
-//     .then((data) => {
-//       connection.query(
-//         "SELECT department.name, employee.first_name, employee.last_name, role.title FROM role JOIN department ON department.id = role.department_id JOIN employee ON role.id = employee.role_id WHERE department.name = ?", 
-//         [data.chosen_Dept], (err, res) => {
-//         if (err) throw err;
-//         console.table(res);
-//         init();
-//       })
-//     })
-// }
-
-
-
-const viewAllRoles = () => {
-  connection.query("SELECT * FROM roles", (err, res) => {
-    if (err) throw err;
-    const rolesData = res;
-    const redesigned = rolesData.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
-    console.table(redesigned);
-  })
-  init();
-}
-
 
 const viewAllEmp = () => {
-  // console.log(`Employees in Database: ${employeeArr}`)
-  let queryPath = "SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name, role.salary FROM employee INNER JOIN role ON (employee.role_id = role.id) INNER JOIN department ON (role.department_id = department.id) ORDER BY employee.id";
-  // let queryPath = "SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name, role.salary, employee.manager_id FROM role JOIN department ON department.id = role.department_id JOIN employee ON role.id = employee.role_id ORDER BY employee.role_id";
-  connection.query(queryPath, (err, res) => {
+  let queryPath = "";
+  connection.query(
+    "SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name, role.salary FROM employee JOIN role ON (employee.role_id = role.id) JOIN department ON (role.department_id = department.id) ORDER BY employee.id", 
+    (err, res) => {
     if (err) throw err;
-    const viewEmpRes = res;
-    const redesigned = viewEmpRes.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
-    console.table(redesigned);
-    console.log(viewEmpRes);
+    const empDisplay = res.reduce((acc, {id, ...x}) => { acc[id] = x; return acc}, {})
+    console.log("-------------------------------------");
+    console.table(empDisplay);
   })
-  // init();
+  init();
 }
+
+
+const updateEmployeeRole = () => {
+  // get list of current employees from SQL database 
+  connection.query("SELECT first_name, last_name FROM employee", (err, res) => {
+    if (err) throw err;
+    var list_employees = [];
+    for (var i = 0; i <res.length; i++) {
+      // seperate variable for first name and last name //
+      const fname = res[i].first_name;
+      const lname = res[i].last_name;
+      // display full name in prompt
+      list_employees.push(fname + "," + lname);
+      }
+  // get list of existing roles from SQL database 
+  connection.query("SELECT title FROM role", (err, res2) => {
+    if (err) throw err;
+    var roles = [];
+    for (var i = 0; i <res2.length; i++) {
+    roles.push(res2[i].title);
+    }
+    roles.push("Create New Role");
+
+    inquirer
+      .prompt([{
+            name: "employee2Update",
+            type: "list",
+            message: "Please specify which Employee needs their role updated: ",
+            choices: list_employees
+        },{
+          name: "role",
+          type: "list",
+          message: "what is his/her new Role?",
+          choices: roles
+        }
+        
+      ])
+    .then(function(data) {
+      if (data.role === "Create New Role"){
+        console.log("Add role into Org's please.")
+        addRole();
+        } else {
+          pullRoleId();
+        } 
+
+
+      const selectedEmp = (data.employee2Update).split(",");
+      function pullRoleId(){
+        const query = "SELECT id FROM role WHERE title = ?";
+        connection.query(query, data.role, (err, res) => {
+          var roleId;
+            if (err) throw err;  
+            roleId = res[0].id
+              const reviseRole = () => {
+                const query = "UPDATE employee SET role_id = ? WHERE first_name = ? AND last_name = ?";
+                connection.query(query,[ roleId , selectedEmp[0] , selectedEmp[1]], (err, res) => {
+                  if (err) throw "err";
+                  console.log(`Role of ${data.employee2Update} has been updated Sucessfully`)
+                  init();
+                });
+                init();
+              };
+            reviseRole()
+        });
+      }   
+    });
+  });  
+})};
 
 connection.connect((err) => {
   if (err) throw err;
   console.log("connected as id " + connection.threadId + "\n");
   init();
-  // connection.end();
 });
